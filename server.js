@@ -11,6 +11,7 @@ const passport = require('koa-passport');
 const router = require('./routes');
 const mongoose = require('mongoose');
 const config = require('./config');
+require('dotenv').config();
 
 const app = new Koa();
 app.proxy = true;

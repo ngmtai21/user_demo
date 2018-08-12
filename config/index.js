@@ -1,3 +1,4 @@
 module.exports = {
-    Connection: require('./connections')
+    Connection: require('./connections'),
+    Login: require('./login')
 }

@@ -11,8 +11,11 @@ router
         accountController.signin)
     .post('/signin',
         accountController.validateSignin,
-        accountController.signinPost)
+        accountController.signinPost,
+        accountController.signinComplete)
     .get('/signup',
-        accountController.signup)
+        accountController.validateSignup,
+        accountController.signupPost,
+        accountController.signupComplete)
 
 module.exports = router;

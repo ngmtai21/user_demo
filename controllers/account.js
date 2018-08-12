@@ -1,5 +1,7 @@
 const passport = require('koa-passport');
 const returnModel = require('../models/returnModel');
+const config = require('../config');
+const entities = require('../models/entities');
 
 const getList = (ctx, next) => {
     ctx.body = 'Get list users';
@@ -10,13 +12,6 @@ const checkLogin = async (ctx) => {
 };
 
 const signin = async (ctx) => {
-    console.log('signin');
-    // const user = ctx.session.user;
-    // if (user) {
-    //     await ctx.redirect('/account');
-    // } else {
-    //     await ctx.render('account/signin', {});
-    // }
     await ctx.render('account/signin', returnModel.loginModel('test', '', ''));
 };
 
@@ -30,7 +25,6 @@ const logout = (ctx) => {
 };
 
 const validateSignin = async (ctx, next) => {
-    console.log('validateSignin');
     const params = ctx.request.body;
 
     if (params) {
@@ -65,13 +59,78 @@ const validateSignin = async (ctx, next) => {
     }
 };
 
-const signinPost = ((ctx) => {
-    console.log('signinPost');
-    return passport.authenticate('local', {
-        successRedirect: '/account',
-        failureRedirect: '/account/signin'
-    })
-})();
+const signinPost = (ctx, next) => {
+    return passport.authenticate('local', {session: false}, (error, user) => {
+        console.log('error, user', error, user);
+        if (!user) {
+            ctx.state.error = {
+                message: 'username or password wrong', 
+                invalidLoginCount: (config.Login.maxFailedLogin - 1) || 0
+            };
+        } else {
+            ctx.state.error.invalidLoginCount = config.Login.maxFailedLogin;
+            ctx.state.user = user;
+
+            let userSession = Object.assign(user.toJSON(), {
+                salt: undefined,
+                encryptedPassword: undefined,
+                pincode: undefined
+            });
+
+            ctx.session.user = userSession;
+        }
+    })(ctx, next).then(() => {
+        console.log('ctx.state.user', ctx.state.user);
+        if (ctx.state.user) {
+            ctx.signin = {
+                error: {},
+                redirect: '/account'
+            }
+        } else {
+            console.log('ctx.state.error.invalidLoginCount', ctx.state.error.invalidLoginCount);
+            if(ctx.state.error.invalidLoginCount) { 
+                let maxFailedLogin = config.Login.maxFailedLogin;
+                let remaining = (maxFailedLogin - ctx.state.error.invalidLoginCount);
+                // ctx.body = entities.base({remaining: remaining, max: maxFailedLogin}, ctx.state.error.message || 'Bad Request', 0);
+                ctx.signin = {
+                    error: returnModel.loginModel(ctx.request.body.username, '', ctx.state.error.message),
+                    redirect: 'account/signin'
+                }
+
+            } else {
+                // ctx.throw(400, ctx.state.error.message || 'Bad Request');
+                ctx.signin = {
+                    error: returnModel.loginModel(ctx.request.body.username, '', ctx.state.error.message),
+                    redirect: 'account/signin'
+                }
+            }
+        }
+
+        return next();
+    });
+
+};
+
+const signinComplete = async (ctx) => {
+    if(ctx.signin.error){
+        await ctx.render('account/signin', ctx.signin.error);
+    } else {
+        await ctx.render('account');
+    }
+};
+
+
+const validateSignup = (ctx, next) => {
+
+};
+
+const signupPost = (ctx, next) => {
+
+};
+
+const signupComplete = async (ctx) => {
+
+};
 
 module.exports = {
     getList: getList,
@@ -79,5 +138,9 @@ module.exports = {
     signin: signin,
     signup: signup,
     validateSignin: validateSignin,
-    signinPost: signinPost
+    signinPost: signinPost,
+    signinComplete,
+    validateSignup,
+    signupPost,
+    signupComplete
 };

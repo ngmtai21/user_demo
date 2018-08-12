@@ -19,7 +19,7 @@ exports.signupModel = () => {
 
         },
         error: {
-            
+
         }
     }
 }
