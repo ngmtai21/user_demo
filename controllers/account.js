@@ -121,7 +121,7 @@ const signinComplete = async (ctx) => {
 
 
 const validateSignup = (ctx, next) => {
-
+    console.log('validateSignup');
 };
 
 const signupPost = (ctx, next) => {
