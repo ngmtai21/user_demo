@@ -14,6 +14,8 @@ router
         accountController.signinPost,
         accountController.signinComplete)
     .get('/signup',
+        accountController.signup)
+    .post('/signup',
         accountController.validateSignup,
         accountController.signupPost,
         accountController.signupComplete)

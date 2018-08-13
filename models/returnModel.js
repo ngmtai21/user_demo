@@ -13,13 +13,17 @@ exports.loginModel = (username, fieldErr, errorMsg) => {
     }
 };
 
-exports.signupModel = () => {
+exports.signupModel = (username, email, fieldErr, errorMsg) => {
     return {
         model: {
-
-        },
-        error: {
-
+            data: {
+                username: username || '',
+                email: email || '',
+            },
+            error: {
+                fieldError: fieldErr || '',
+                message: errorMsg || ''
+            }
         }
     }
 }

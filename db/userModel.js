@@ -5,8 +5,15 @@ const UserSchema = new Schema({
     username: {
         type: String,
     },
+    email: {
+    	type: String,
+    },
     password: {
         type: String
+    },
+    createAt: {
+    	type: Date,
+    	default: Date.now
     }
 });
 

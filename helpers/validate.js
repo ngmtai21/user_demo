@@ -4,5 +4,5 @@ const validateEmail = (email) => {
 };
 
 module.exports = {
-	valida;teEmail
+	validateEmail
 };

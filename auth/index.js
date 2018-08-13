@@ -6,11 +6,6 @@ const fetchUser = ((username, password) => {
   return db.users.findOne({username: username}).then((err, result) => {
     return result;
   });
-
-  // const user = { id: 1, username: 'test', password: 'test' };
-  // return async () => {
-  //   return user;
-  // }
 });
 
 passport.serializeUser((user, done) => {

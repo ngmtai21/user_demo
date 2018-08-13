@@ -2,6 +2,8 @@ const passport = require('koa-passport');
 const returnModel = require('../models/returnModel');
 const config = require('../config');
 const entities = require('../models/entities');
+const helpers = require('../helpers');
+const db = require('../db');
 
 const getList = (ctx, next) => {
     ctx.body = 'Get list users';
@@ -14,10 +16,6 @@ const checkLogin = async (ctx) => {
 const signin = async (ctx) => {
     await ctx.render('account/signin', returnModel.loginModel('test', '', ''));
 };
-
-const signup = async (ctx) => {
-    await ctx.render('account/signup', returnModel.signupModel());
-}
 
 const logout = (ctx) => {
     ctx.logout();
@@ -61,7 +59,6 @@ const validateSignin = async (ctx, next) => {
 
 const signinPost = (ctx, next) => {
     return passport.authenticate('local', {session: false}, (error, user) => {
-        console.log('error, user', error, user);
         if (!user) {
             ctx.state.error = {
                 message: 'username or password wrong', 
@@ -80,14 +77,12 @@ const signinPost = (ctx, next) => {
             ctx.session.user = userSession;
         }
     })(ctx, next).then(() => {
-        console.log('ctx.state.user', ctx.state.user);
         if (ctx.state.user) {
             ctx.signin = {
                 error: {},
                 redirect: '/account'
             }
         } else {
-            console.log('ctx.state.error.invalidLoginCount', ctx.state.error.invalidLoginCount);
             if(ctx.state.error.invalidLoginCount) { 
                 let maxFailedLogin = config.Login.maxFailedLogin;
                 let remaining = (maxFailedLogin - ctx.state.error.invalidLoginCount);
@@ -119,13 +114,71 @@ const signinComplete = async (ctx) => {
     }
 };
 
+const signup = async (ctx) => {
+    await ctx.render('account/signup', returnModel.signupModel('', '','', ''));
+};
 
-const validateSignup = (ctx, next) => {
-    console.log('validateSignup');
+const validateSignup = async (ctx, next) => {
+    const params = ctx.request.body;
+
+    if (params) {
+        let username = params.username;
+        let email = params.email;
+        let password = params.password;
+        let confirmPassword = params['confirm-password'];
+
+        if (!username || username.trim() == '') {
+            await ctx.render('account/signup', returnModel.signupModel('', email, 'username', 'Input username'));
+            return;
+        }
+        username = username.trim();
+        let length = username.length;
+        if (length > 30) {
+            await ctx.render('account/signup', returnModel.signupModel(username, email, 'username', 'length of username less than 30.'));
+            return;
+        }
+
+        if (!email || email.trim() == '') {
+            await ctx.render('account/signup', returnModel.signupModel(username, '', 'email', 'Input email'));
+            return;
+        }
+        email = email.trim();
+        if(!helpers.validate.validateEmail(email)){
+            await ctx.render('account/signup', returnModel.signupModel(username, email, 'email', 'email invalid'));
+            return;   
+        }
+
+        if (!password || password.trim() == '') {
+            await ctx.render('account/signup', returnModel.signupModel(username, email, 'password', 'Input password'))
+            return;
+        }
+        password = password.trim();
+        
+        if (password != confirmPassword) {
+            await ctx.render('account/signup', returnModel.signupModel(username, email, 'confirm-password', 'confirm-password not match.'))
+            return;
+        }
+
+        ctx.state.user = {
+            username,
+            email,
+            password: helpers.encrypt.md5(password)
+        };
+
+        return next();
+    } else {
+        ctx.render('account/signup', {})
+    }
 };
 
 const signupPost = (ctx, next) => {
-
+    const obj = ctx.state.user;
+    console.log('-----------obj', obj);
+    const user = new db.users(obj);
+    user.save()
+        .then((res) => {
+            console.log('-------------signupPost - res', res);
+        });
 };
 
 const signupComplete = async (ctx) => {
