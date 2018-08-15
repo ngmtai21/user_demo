@@ -17,4 +17,24 @@ const UserSchema = new Schema({
     }
 });
 
-module.exports = mongoose.model('users', UserSchema);
+const UserModel = mongoose.model('users', UserSchema);
+
+exports.getOne = (condition) => {
+	return UserModel.findOne(condition).exec();
+};
+
+exports.checkExists = (username, email) => {
+	return UserModel.findOne({
+		$or: [
+			{username: username},
+			{email: email}
+		]
+	}).exec();
+};
+
+exports.save = (username, email, password) => {
+	const aBc = new UserModel({username: username, email: email, password: password});
+	return aBc.save();
+}
+
+// module.exports = mongoose.model('users', UserSchema);

@@ -59,6 +59,7 @@ const validateSignin = async (ctx, next) => {
 
 const signinPost = (ctx, next) => {
     return passport.authenticate('local', {session: false}, (error, user) => {
+        ctx.state.error = {};
         if (!user) {
             ctx.state.error = {
                 message: 'username or password wrong', 
@@ -78,8 +79,8 @@ const signinPost = (ctx, next) => {
         }
     })(ctx, next).then(() => {
         if (ctx.state.user) {
-            ctx.signin = {
-                error: {},
+            ctx.state.signin = {
+                error: 0,
                 redirect: '/account'
             }
         } else {
@@ -87,14 +88,13 @@ const signinPost = (ctx, next) => {
                 let maxFailedLogin = config.Login.maxFailedLogin;
                 let remaining = (maxFailedLogin - ctx.state.error.invalidLoginCount);
                 // ctx.body = entities.base({remaining: remaining, max: maxFailedLogin}, ctx.state.error.message || 'Bad Request', 0);
-                ctx.signin = {
+                ctx.state.signin = {
                     error: returnModel.loginModel(ctx.request.body.username, '', ctx.state.error.message),
                     redirect: 'account/signin'
                 }
-
             } else {
                 // ctx.throw(400, ctx.state.error.message || 'Bad Request');
-                ctx.signin = {
+                ctx.state.signin = {
                     error: returnModel.loginModel(ctx.request.body.username, '', ctx.state.error.message),
                     redirect: 'account/signin'
                 }
@@ -107,10 +107,10 @@ const signinPost = (ctx, next) => {
 };
 
 const signinComplete = async (ctx) => {
-    if(ctx.signin.error){
-        await ctx.render('account/signin', ctx.signin.error);
+    if(ctx.state.signin.error){
+        await ctx.render(ctx.state.signin.redirect, ctx.state.signin.error);
     } else {
-        await ctx.render('account');
+        ctx.redirect(ctx.state.signin.redirect);
     }
 };
 
@@ -153,6 +153,11 @@ const validateSignup = async (ctx, next) => {
             return;
         }
         password = password.trim();
+
+        if(password.length < 6){
+            await ctx.render('account/signup', returnModel.signupModel(username, email, 'password', 'Use 6 characters or more for your password.'))
+            return;
+        }
         
         if (password != confirmPassword) {
             await ctx.render('account/signup', returnModel.signupModel(username, email, 'confirm-password', 'confirm-password not match.'))
@@ -173,16 +178,52 @@ const validateSignup = async (ctx, next) => {
 
 const signupPost = (ctx, next) => {
     const obj = ctx.state.user;
-    console.log('-----------obj', obj);
-    const user = new db.users(obj);
-    user.save()
-        .then((res) => {
-            console.log('-------------signupPost - res', res);
-        });
+    return db.users.checkExists(obj.username, obj.password)
+    .then((res, err) => {
+        if(err){
+            ctx.state.signup = {
+                error: returnModel.signupModel(obj.username, obj.email, '', 'server error: ' + err),
+                redirect: 'account/signup'
+            }
+
+            return next();
+        } else {
+            if(res) {
+                ctx.state.signup = {
+                    error: returnModel.signupModel(obj.username, obj.email, 'username', 'user exists.'),
+                    redirect: 'account/signup'
+                }
+                return next();
+            } 
+            else { //not exists
+                return db.users.save(obj.username, obj.email, obj.password)
+                .then((result, error) => {
+                    console.log('result, error', result, error);
+                    if(!error){
+                        ctx.state.user = result;
+                        ctx.state.signup = {
+                            error: 0,
+                            redirect: 'account'
+                        }
+                    } else {
+                        ctx.state.signup = {
+                            error: returnModel.signupModel(obj.username, obj.email, '', 'server error: ' + error),
+                            redirect: 'account/signup'
+                        }
+                    }
+                    return next();
+                });
+            }
+        }
+    });
 };
 
 const signupComplete = async (ctx) => {
-
+    if(ctx.state.signup.error){
+        await ctx.render(ctx.state.signup.redirect, ctx.state.signup.error);
+    } else {
+        ctx.redirect(ctx.state.signup.redirect);
+    }
 };
 
 module.exports = {

@@ -1,9 +1,18 @@
 const passport = require('koa-passport');
 const LocalStrategy = require('passport-local').Strategy;
 const db = require('../db');
+const helpers = require('../helpers');
 
 const fetchUser = ((username, password) => {
-  return db.users.findOne({username: username}).then((err, result) => {
+  password = helpers.encrypt.md5(password);
+  // return db.users.findOne({username: username, password: password}).then((result, err) => {;
+  //   console.log('err', err);
+  //   console.log('result', result);
+  //   return result;
+  // });
+  return db.users.getOne({username: username, password: password}).then((result, err) => {;
+    console.log('err', err);
+    console.log('result', result);
     return result;
   });
 });
@@ -28,15 +37,11 @@ passport.use(new LocalStrategy(
     fetchUser(username, password)
     .then(user => {
       if(user){
-        if (username === user.username && password === user.password) {
-          done(null, user);
-        } else {
-          done(null, false);
-        }
+        done(null, user);
       } else {
        done(null, false);
      }
-   })
+    })
     .catch((err) => { done(err) });
   }));
 
